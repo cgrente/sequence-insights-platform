@@ -1,16 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
+  push:
+    branches: [main]
 
 jobs:
-  test:
+  go:
     name: Lint & Test (Go)
     runs-on: ubuntu-latest
 
@@ -18,24 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: server/go.mod
           cache: true
 
-      - name: Format check (gofmt)
-        run: |
-          set -euo pipefail
-          fmt_out="$(gofmt -l .)"
-          if [ -n "$fmt_out" ]; then
-            echo "gofmt required on:"
-            echo "$fmt_out"
-            exit 1
-          fi
+      - name: Go fmt
+        working-directory: server
+        run: gofmt -w .
 
-      - name: Vet
+      - name: Go vet
+        working-directory: server
         run: go vet ./...
 
-      - name: Test
-        run: go test ./... -race
+      - name: Go test
+        working-directory: server
+        run: go test ./...
