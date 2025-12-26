@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -28,16 +30,19 @@ Best practices demonstrated:
 */
 
 func main() {
-	cfg, err := config.Load()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		panic(err)
 	}
 
 	log := logging.NewJSONLogger(slog.LevelInfo)
-	log.Info("starting", "env", cfg.Env, "addr", cfg.HTTPAddr)
-
+	log.Info(
+		"starting",
+		"env", cfg.Env,
+		"addr", net.JoinHostPort(cfg.HTTPHost, strconv.Itoa(cfg.HTTPPort)),
+	)
 	// Database
-	dbConn, err := db.Open(cfg.DBURL)
+	dbConn, err := db.Open(cfg.DBUrl)
 	if err != nil {
 		log.Error("failed to open database", "err", err)
 		os.Exit(1)
@@ -46,7 +51,7 @@ func main() {
 
 	dbConn.SetMaxOpenConns(cfg.DBMaxOpenConns)
 	dbConn.SetMaxIdleConns(cfg.DBMaxIdleConns)
-	dbConn.SetConnMaxIdleTime(cfg.DBConnMaxIdle)
+	dbConn.SetConnMaxIdleTime(cfg.DBConnMaxIdleTime)
 	dbConn.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
 
 	ctx := context.Background()
@@ -72,13 +77,13 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
+		Addr:              net.JoinHostPort(cfg.HTTPHost, strconv.Itoa(cfg.HTTPPort)),
 		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		log.Info("http listening", "addr", cfg.HTTPAddr)
+		log.Info("http listening", "addr", net.JoinHostPort(cfg.HTTPHost, strconv.Itoa(cfg.HTTPPort)))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("http server error", "err", err)
 			os.Exit(1)
